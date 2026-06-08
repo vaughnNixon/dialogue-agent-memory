@@ -1,6 +1,6 @@
-# Blissful Bardeen: Dialogue Agent with Long-Term Memory
+# Athena: Dialogue Agent with Long-Term Memory
 
-Blissful Bardeen is a terminal-based chat agent that implements an advanced long-term memory architecture and a universal, rotating API provider pool. It supports automatic conversation log chunking, intent-based memory search, self-improving keyword indexing, and failover API endpoint rotation.
+Athena is a terminal-based chat agent that implements an advanced long-term memory architecture and a universal, rotating API provider pool. It supports automatic conversation log chunking, intent-based memory search, self-improving keyword indexing, and failover API endpoint rotation.
 
 ---
 
