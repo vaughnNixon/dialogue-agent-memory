@@ -51,7 +51,10 @@ def start_chat(is_mock=False, mock_target=1):
         )
 
         if part_num is None:
-            mock_agent_response = f"[Mock Agent Response] Direct response (no memory retrieval). Prompt: {user_input}"
+            if context_content:
+                mock_agent_response = f"[Mock Agent Response] Retrieved reflection memory. Prompt: {user_input}"
+            else:
+                mock_agent_response = f"[Mock Agent Response] Direct response (no memory retrieval). Prompt: {user_input}"
         else:
             mock_agent_response = f"[Mock Agent Response] Retrieved context from Part {part_num}. Prompt: {user_input}"
         

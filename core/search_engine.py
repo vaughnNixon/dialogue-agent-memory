@@ -82,7 +82,7 @@ def update_index_map_keywords(index_map_path, parts_to_update, query_tokens):
 
 def search_memory(query, is_mock=False, mock_target=1, memory_dir="memory"):
     """Searches memory using a two-phase strategy. Returns (matched_part, content)."""
-    index_map_path = os.path.join(memory_dir, "index_map.json")
+    index_map_path = os.path.join(memory_dir, "indexes", "index_map.json")
     if not os.path.exists(index_map_path):
         print(f"Error: Index map file not found at {index_map_path}. Run chunker first.", file=sys.stderr)
         return None, ""
@@ -132,6 +132,86 @@ def search_memory(query, is_mock=False, mock_target=1, memory_dir="memory"):
 
     query_tokens = tokenize(query)
     print(f"Query tokens: {query_tokens}", file=sys.stderr)
+
+    # STEP 1: Reflection Search
+    reflection_index_path = os.path.join(memory_dir, "indexes", "reflection_index.json")
+    if os.path.exists(reflection_index_path):
+        try:
+            with open(reflection_index_path, "r", encoding="utf-8") as f:
+                ref_index_data = json.load(f)
+            
+            reflections = ref_index_data.get("reflections", {})
+            ref_candidates = []
+            
+            for ref_id, ref_entry in reflections.items():
+                # Match keywords (weight = 3)
+                ref_keywords = set(ref_entry.get("keywords", []))
+                kw_matches = sum(1 for token in query_tokens if token in ref_keywords)
+                
+                # Match summary (weight = 1)
+                summary_tokens = set(tokenize(ref_entry.get("summary", "")))
+                sum_matches = sum(1 for token in query_tokens if token in summary_tokens)
+                
+                if kw_matches > 0 or sum_matches > 0:
+                    importance = ref_entry.get("importance", 5)
+                    score = (kw_matches * 3) + (sum_matches * 1) + (importance * 0.2)
+                    ref_candidates.append((ref_id, score))
+            
+            if ref_candidates:
+                ref_candidates.sort(key=lambda x: x[1], reverse=True)
+                best_ref_id, best_score = ref_candidates[0]
+                print(f"Reflection Search candidate: {best_ref_id} (score: {best_score})", file=sys.stderr)
+                
+                if best_score >= 3.0:
+                    # Retrieve the reflection from its individual file
+                    ref_filepath = os.path.join(memory_dir, "reflections", f"reflection_{best_ref_id}.json")
+                    if os.path.exists(ref_filepath):
+                        with open(ref_filepath, "r", encoding="utf-8") as f:
+                            ref_data = json.load(f)
+                        
+                        goal = ref_data.get("goal", "")
+                        outcome = ref_data.get("outcome", "")
+                        success_val = ref_data.get("success", "")
+                        failure_val = ref_data.get("failure", "")
+                        lesson = ref_data.get("lesson", "")
+                        
+                        # Self-Improvement: increment retrieval count and learn phrasing keywords
+                        ref_entry = reflections[str(best_ref_id)]
+                        ref_entry["retrieval_count"] = ref_entry.get("retrieval_count", 0) + 1
+                        
+                        # Add matching query tokens to keywords list (learning common user phrasing)
+                        learned_kws = list(ref_entry.get("keywords", []))
+                        updated_keywords = False
+                        for token in query_tokens:
+                            if token not in learned_kws:
+                                learned_kws.append(token)
+                                updated_keywords = True
+                        
+                        if updated_keywords:
+                            ref_entry["keywords"] = learned_kws
+                            ref_data["keywords"] = learned_kws
+                            # Save back the individual file
+                            with open(ref_filepath, "w", encoding="utf-8") as f:
+                                json.dump(ref_data, f, indent=2, ensure_ascii=False)
+                        
+                        # Save back the index map
+                        with open(reflection_index_path, "w", encoding="utf-8") as f:
+                            json.dump(ref_index_data, f, indent=2, ensure_ascii=False)
+                            
+                        print(f"Reflection Hit: Retrieved reflection {best_ref_id} directly. Self-improvement executed.", file=sys.stderr)
+                        
+                        formatted_reflection = (
+                            "[Reflection Memory (Lesson Learned)]\n"
+                            f"Goal: {goal}\n"
+                            f"Outcome: {outcome}\n"
+                            f"Success: {success_val}\n"
+                            f"Failure: {failure_val}\n"
+                            f"Lesson: {lesson}"
+                        )
+                        # Return None for part, and the reflection context
+                        return None, formatted_reflection
+        except Exception as e:
+            print(f"Warning: Error during reflection search: {e}", file=sys.stderr)
 
     # PHASE 1: Keyword Match
     scored_parts = []
@@ -225,7 +305,7 @@ def search_memory(query, is_mock=False, mock_target=1, memory_dir="memory"):
 
     # Retrieve and output the matched part file content
     part_filename = f"part_{matched_part}.txt"
-    part_path = os.path.join(memory_dir, part_filename)
+    part_path = os.path.join(memory_dir, "chunks", part_filename)
 
     if not os.path.exists(part_path):
         print(f"Error: Chunk file {part_path} does not exist.", file=sys.stderr)
