@@ -1,6 +1,7 @@
 memory/chunks/
 memory/reflections/
 memory/indexes/
+memory_backup/
 keys.json
 .env
 __pycache__/

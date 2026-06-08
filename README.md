@@ -48,9 +48,36 @@ The system operates across three core divisions:
 
 ---
 
-## File Structure
+## Example Retrieval Flow
+
+Athena retrieves memory using a structured cascading order. If high-level lessons (reflections) or high-confidence keyword matches are found, it skips full database lookups to optimize token consumption.
 
 ```
+User Query
+     ↓
+Intent Check
+     ↓
+Reflection Search (score >= 3.0)
+   /    \
+ yes    no
+  ↓      ↓
+Return  Keyword Match
+Context    ↓
+        Confident? (Margin >= 1)
+         /    \
+       yes    no
+        ↓      ↓
+      Return  Binary Search
+      Context      ↓
+                Retrieve
+```
+
+---
+
+## Repository Structure
+
+```
+athena/
 ├── core/
 │   ├── agent.py          # Terminal dialogue loop and auto-chunk scheduler
 │   ├── key_manager.py    # Rotation, HTTP payloads, and error count management
@@ -61,8 +88,8 @@ The system operates across three core divisions:
 │   ├── reflections/      # Git-ignored parsed reflection JSON objects (reflection_N.json)
 │   ├── indexes/          # Git-ignored maps (index_map.json, reflection_index.json)
 │   └── chunker.py        # Dialogue log segmenter & reflection generator
-├── keys.json             # Git-ignored JSON file hosting configured API keys
-└── README.md             # Project documentation
+├── README.md             # Project documentation
+└── requirements.txt      # Dependency configurations
 ```
 
 ---
@@ -105,6 +132,18 @@ Extracts and indexes lesson summaries from conversation segments.
 
 ---
 
+## Future Roadmap
+
+- [x] Reflection Memory System
+- [x] Importance-based Scoring
+- [ ] Client Namespaces & Segment Isolation
+- [ ] Dense Semantic / Embedding Search
+- [ ] Puter Cloud Service Integration
+- [ ] Gradio Web interface
+- [ ] HuggingFace Spaces Deployment
+
+---
+
 ## Setup & Usage
 
 ### 1. Initialize API Keys
@@ -115,9 +154,9 @@ python core/setup_keys.py
 Add your Gemini and OpenAI-compatible keys (such as Groq).
 
 ### 2. Install Dependencies
-The project uses python's standard library except for the `requests` HTTP client:
+Install packages listed in `requirements.txt`:
 ```powershell
-pip install requests
+pip install -r requirements.txt
 ```
 
 ### 3. Launch Dialogue Loop
